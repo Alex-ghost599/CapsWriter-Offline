@@ -22,4 +22,5 @@ jobs:
       - run: brew install shellcheck
       - run: shellcheck --shell=bash scripts/install_macos.sh
       - run: /bin/bash -n scripts/install_macos.sh
-      - run: uvx --from pytest==9.1.1 pytest -q tests/test_macos_installer.py
+      - run: uv python install 3.12
+      - run: uvx --python 3.12 --from pytest==9.1.1 --with pytest-asyncio==1.4.0 pytest -q tests/test_macos_installer.py
