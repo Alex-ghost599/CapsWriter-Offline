@@ -13,11 +13,10 @@ from pathlib import Path
 
 from .state import ClientState
 from . import logger
-from config_client import ClientConfig as Config, __version__
+from config_client import BASE_DIR, ClientConfig as Config
 from core.tools.signal_handler import register_signal
 from .state import console
 from .connection import WebSocketManager
-from typing import TYPE_CHECKING, Optional
 from .manager import (
     TrayManager,
     MicRunner, FileRunner
@@ -32,8 +31,24 @@ from .hotword.manager import HotwordManager
 from .llm.llm_handler import LLMHandler
 from .output.text_output import TextOutput
 from .diary.diary_writer import DiaryWriter
+from .macos_permissions import MacOSPermissionError, show_macos_error, show_permission_error
 from core.tools.empty_working_set import empty_current_working_set
-from platform import system
+
+
+def _resolve_input_files(arguments: list[str], launch_dir: Path) -> list[Path]:
+    """Resolve command-line files before the client changes its working directory."""
+    files = []
+    for argument in arguments:
+        try:
+            path = Path(argument).expanduser()
+            if not path.is_absolute():
+                path = launch_dir / path
+            path = path.resolve()
+            if path.is_file():
+                files.append(path)
+        except (OSError, RuntimeError) as exc:
+            logger.warning(f'忽略无法解析的输入路径 {argument!r}: {exc}')
+    return files
 
 
 
@@ -45,7 +60,8 @@ class CapsWriterClient:
     """
     def __init__(self):
         # 确保正确的工作目录
-        self.base_dir = Path(__file__).parents[2]
+        self.launch_dir = Path.cwd()
+        self.base_dir = Path(BASE_DIR)
         os.chdir(self.base_dir)
             
         # 初始化事件循环
@@ -124,7 +140,7 @@ class CapsWriterClient:
         # 注册退出函数
         register_signal(self.stop)
 
-        files = [Path(f) for f in sys.argv[1:] if os.path.exists(f)]
+        files = _resolve_input_files(sys.argv[1:], self.launch_dir)
 
         if files:
             # 文件转录模式
@@ -135,7 +151,23 @@ class CapsWriterClient:
         
         try:
             self.loop.run_until_complete(runner.run())
-        except RuntimeError:
-            ...
-
-
+        except MacOSPermissionError as exc:
+            logger.error(str(exc))
+            console.print(f'[bold red]{exc}[/bold red]')
+            if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+                try:
+                    show_permission_error(str(exc))
+                except Exception:
+                    logger.exception('macOS 权限错误弹窗显示失败')
+            raise SystemExit(2) from None
+        except RuntimeError as exc:
+            if str(exc) == 'Event loop stopped before Future completed.':
+                return
+            logger.exception('客户端运行异常')
+            console.print(f'[bold red]{exc}[/bold red]')
+            if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+                try:
+                    show_macos_error(str(exc))
+                except Exception:
+                    logger.exception('macOS 运行错误弹窗显示失败')
+            raise SystemExit(1) from None

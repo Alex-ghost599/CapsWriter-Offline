@@ -1,5 +1,4 @@
 # coding: utf-8
-from typing import Any
 from ..base import BasePuncEngine
 
 
@@ -16,7 +15,9 @@ class CTTransformerPuncEngine(BasePuncEngine):
 
     def _initialize(self):
         """延迟初始化内核"""
-        import sherpa_onnx
+        from ..sherpa_runtime import load_sherpa_onnx
+
+        sherpa_onnx = load_sherpa_onnx()
         punc_cfg = sherpa_onnx.OfflinePunctuationConfig(
             model=sherpa_onnx.OfflinePunctuationModelConfig(
                 ct_transformer=self.model_path

@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import sys
 import time
 import threading
 from typing import TYPE_CHECKING, Optional
@@ -17,6 +16,7 @@ import numpy as np
 import sounddevice as sd
 
 from core.client.state import console
+from config_client import ClientConfig as Config
 from . import logger
 
 if TYPE_CHECKING:
@@ -41,7 +41,6 @@ class AudioStreamManager:
         block_duration: 每个数据块的时长（秒，默认 0.05s）
     """
 
-    SAMPLE_RATE = 48000
     BLOCK_DURATION = 0.05  # 50ms
 
     def __init__(self, app: CapsWriterClient):
@@ -53,6 +52,7 @@ class AudioStreamManager:
         """
         self.app = app
         self._channels = 1
+        self.sample_rate = Config.audio_sample_rate
         self._running = False  # 标志是否应该运行
 
     @property
@@ -112,27 +112,41 @@ class AudioStreamManager:
 
         # 检测音频设备
         try:
-            device = sd.query_devices(kind='input')
+            device = sd.query_devices(device=Config.audio_device, kind='input')
             self._channels = min(2, device['max_input_channels'])
             device_name = device.get('name', '未知设备')
+            try:
+                sd.check_input_settings(
+                    device=Config.audio_device,
+                    channels=self._channels,
+                    dtype='float32',
+                    samplerate=self.sample_rate,
+                )
+            except sd.PortAudioError:
+                self.sample_rate = int(device['default_samplerate'])
+                sd.check_input_settings(
+                    device=Config.audio_device,
+                    channels=self._channels,
+                    dtype='float32',
+                    samplerate=self.sample_rate,
+                )
+                logger.warning(f"首选采样率不可用，改用设备默认值 {self.sample_rate} Hz")
             console.print(
-                f'使用默认音频设备：[italic]{device_name}，声道数：{self._channels}',
+                f'使用音频设备：[italic]{device_name}，声道数：{self._channels}，采样率：{self.sample_rate} Hz',
                 end='\n\n'
             )
-            logger.info(f"找到音频设备: {device_name}, 声道数: {self._channels}")
+            logger.info(f"找到音频设备: {device_name}, 声道数: {self._channels}, 采样率: {self.sample_rate}")
         except UnicodeDecodeError:
             logger.warning("无法获取音频设备名称（编码问题）")
-        except sd.PortAudioError:
-            logger.error("未找到麦克风设备")
-            input('按回车键退出')
-            sys.exit(1)
+        except sd.PortAudioError as exc:
+            raise RuntimeError(f"麦克风设备不可用: {exc}") from exc
 
         # 创建音频流
         try:
             stream = sd.InputStream(
-                samplerate=self.SAMPLE_RATE,
-                blocksize=int(self.BLOCK_DURATION * self.SAMPLE_RATE),
-                device=None,
+                samplerate=self.sample_rate,
+                blocksize=int(self.BLOCK_DURATION * self.sample_rate),
+                device=Config.audio_device,
                 dtype="float32",
                 channels=self._channels,
                 callback=self._audio_callback,
@@ -141,10 +155,11 @@ class AudioStreamManager:
             stream.start()
 
             self.state.stream = stream
+            self.state.audio_sample_rate = self.sample_rate
             self._running = True
             logger.debug(
-                f"音频流已启动: 采样率={self.SAMPLE_RATE}, "
-                f"块大小={int(self.BLOCK_DURATION * self.SAMPLE_RATE)}"
+                f"音频流已启动: 采样率={self.sample_rate}, "
+                f"块大小={int(self.BLOCK_DURATION * self.sample_rate)}"
             )
             return stream
 

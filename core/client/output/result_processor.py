@@ -16,8 +16,8 @@ from core.client.state import console
 from core.protocol import RecognitionMessage
 
 from core.client.output.text_output import TextOutput
+from core.client.platform_input import tap_key
 from core.tools.window_detector import get_active_window_info
-import keyboard
 from . import logger
 
 from core.client.udp.udp_broadcaster import broadcast_output_udp
@@ -26,6 +26,7 @@ from core.client.audio.file_manager import AudioFileManager
 from core.client.llm.llm_write_md import write_llm_md
 
 if TYPE_CHECKING:
+    from core.client.connection import WebSocketManager
     from core.client.state import ClientState
     from core.client.app import CapsWriterClient
     from core.client.hotword.manager import HotwordManager
@@ -45,7 +46,7 @@ def _estimate_tokens(text: str) -> int:
 async def _auto_enter(delay: float) -> None:
     """延迟发送回车键"""
     await asyncio.sleep(delay)
-    keyboard.press_and_release('enter')
+    tap_key('enter')
     logger.debug(f"自动回车已发送 (延迟 {delay}s)")
 
 
@@ -143,6 +144,10 @@ class ResultProcessor:
         
         用于调试按键卡住问题。
         """
+        import sys
+
+        if sys.platform != 'win32':
+            return
         try:
             import keyboard
             
@@ -168,13 +173,14 @@ class ResultProcessor:
             while not self._exit_event.is_set():
                 try:
                     message = await self.ws.receive()
-                    if message is None: break
+                    if message is None:
+                        break
                     await self._handle_message(message)
                 except Exception as e:
                     logger.debug(f"连接异常中断: {e}")
                     break
 
-            console.print(f'[bold red]已断开服务端连接[/bold red]\n')
+            console.print('[bold red]已断开服务端连接[/bold red]\n')
             self._cleanup()
             
 
@@ -257,7 +263,9 @@ class ResultProcessor:
 
         # 窗口兼容性检测
         paste = Config.paste
-        process_name = get_active_window_info().get('process_name', '').lower()
+        process_name = ''
+        if Config.paste_apps or Config.enter_apps:
+            process_name = get_active_window_info().get('process_name', '').lower()
         logger.debug(f"当前活动窗口: {process_name}")
         if any(app.lower() == process_name for app in Config.paste_apps):
             paste = True

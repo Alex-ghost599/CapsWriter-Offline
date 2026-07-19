@@ -1,5 +1,5 @@
 # coding: utf-8
-import asyncio
+import sys
 from . import logger
 from ..ui import TipsDisplay
 from config_client import ClientConfig as Config, __version__
@@ -27,6 +27,28 @@ class MicRunner:
 
     def start_resources(self):
         """初始化麦克风模式特有资源 (音频硬件、快捷键、UI 托盘)"""
+        if sys.platform == 'darwin':
+            from core.client.macos_permissions import MacOSPermissionError, request_required_permissions
+
+            permissions = request_required_permissions()
+            if not permissions.ready:
+                missing = [
+                    name
+                    for name, granted in (
+                        ('麦克风', permissions.microphone),
+                        ('辅助功能', permissions.accessibility),
+                        ('输入监控', permissions.input_monitoring),
+                        ('按键控制', permissions.post_events),
+                    )
+                    if not granted
+                ]
+                permission_target = 'CapsWriter.app' if getattr(sys, 'frozen', False) else '当前 Python 客户端'
+                raise MacOSPermissionError(
+                    'macOS 权限尚未完成：'
+                    + '、'.join(missing)
+                    + f'。请在“系统设置 > 隐私与安全性”中授权 {permission_target} 后重启客户端。'
+                )
+
         # 1. 托盘
         self.tray_manager.start()
 
@@ -34,7 +56,9 @@ class MicRunner:
         TipsDisplay.show_mic_tips()
 
         # 3. 开启运行组件 (音频流、快捷键监听)
-        self.app.stream.start()
+        stream = self.app.stream.start()
+        if stream is None:
+            raise RuntimeError('音频输入流启动失败，请检查麦克风设备与采样率设置')
         self.app.shortcut.start()
         
         # 4. 开启 UDP 控制 (如果启用)
@@ -43,7 +67,8 @@ class MicRunner:
 
         # 5. 开启后台服务 (热词、LLM)
         self.app.hotword.start()
-        self.app.llm.start()
+        if Config.llm_enabled:
+            self.app.llm.start()
 
     async def run(self):
         """麦克风模式主入口"""
@@ -61,4 +86,3 @@ class MicRunner:
         self.processor = ResultProcessor(self.app)
         await self.processor.start()
             
-

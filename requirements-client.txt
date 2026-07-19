@@ -5,11 +5,16 @@ colorama
 markdown
 
 # system, input, hardware
-keyboard
+keyboard; sys_platform == "win32"
 pynput
 pyclip
 sounddevice
 watchdog
+
+# macOS native input and clipboard backends
+pyobjc-framework-AVFoundation; sys_platform == "darwin"
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+pyobjc-framework-Quartz; sys_platform == "darwin"
 
 # network and api 
 websockets
@@ -20,6 +25,8 @@ httpx
 # data process
 numpy
 numba
+scipy
+soxr
 pypinyin
 srt
 rapidfuzz

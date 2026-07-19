@@ -1,11 +1,10 @@
 # coding: utf-8
 import asyncio
-import shutil
-import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from core.client.state import console
+from core.tools.external_tools import find_executable
 from . import logger
 
 class MediaTool:
@@ -14,8 +13,8 @@ class MediaTool:
     @staticmethod
     def check_environment() -> bool:
         """检查 FFmpeg 和 ffprobe 环境"""
-        ffmpeg_path = shutil.which('ffmpeg')
-        ffprobe_path = shutil.which('ffprobe')
+        ffmpeg_path = find_executable('ffmpeg')
+        ffprobe_path = find_executable('ffprobe')
         
         if ffmpeg_path is None:
             console.print('\n[bold red]错误：未检测到 FFmpeg 环境[/bold red]')
@@ -39,7 +38,7 @@ class MediaTool:
     async def get_audio_duration(file: Path) -> float:
         """获取音视频文件时长"""
         cmd = [
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            find_executable('ffprobe') or "ffprobe", "-v", "error", "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1", str(file)
         ]
         try:
@@ -59,6 +58,6 @@ class MediaTool:
     def build_ffmpeg_cmd(file: Path) -> List[str]:
         """构建提取音频的 FFmpeg 命令"""
         return [
-            "ffmpeg", "-i", str(file),
+            find_executable('ffmpeg') or "ffmpeg", "-i", str(file),
             "-f", "f32le", "-ac", "1", "-ar", "16000", "-"
         ]

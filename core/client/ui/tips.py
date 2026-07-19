@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 from rich.markdown import Markdown
 
@@ -27,7 +28,19 @@ def _format_shortcut_name(key: str) -> str:
     Returns:
         str: 格式化后的名称（如 'CapsLock', 'F12'）
     """
-    # 将下划线替换为空格，然后标题化
+    directional_modifiers = {
+        'shift_l': 'Left Shift',
+        'shift_r': 'Right Shift',
+        'ctrl_l': 'Left Control',
+        'ctrl_r': 'Right Control',
+        'alt_l': 'Left Option',
+        'alt_r': 'Right Option',
+        'cmd_l': 'Left Command',
+        'cmd_r': 'Right Command',
+    }
+    if key in directional_modifiers:
+        return directional_modifiers[key]
+
     return key.replace('_', ' ').title()
 
 
@@ -62,18 +75,29 @@ class TipsDisplay:
         console.rule('[bold #d55252]CapsWriter Offline Client[/]')
         console.print(f'\n版本：[bold green]{__version__}[/]')
 
+        if sys.platform == 'darwin':
+            platform_intro = '**CapsWriter-Offline** 是一个完全离线的 macOS 语音输入工具。'
+            launch_step = '运行 `uv run python start_client.py` 或 **CapsWriter.app**，它负责听音和打字上屏。'
+            permission_note = '首次运行需在系统设置中允许麦克风、辅助功能和输入监控权限。'
+            privilege_note = f'macOS 当前使用 {shortcuts_display} 长按录音，并通过剪贴板与 Command-V 输入结果。'
+        else:
+            platform_intro = '**CapsWriter-Offline** 是一个专为 Windows 打造的完全离线语音输入工具。'
+            launch_step = '运行 **Client** 端，它作为「耳朵」负责听音和打字上屏。'
+            permission_note = '如需在管理员权限运行的程序中输入，请以管理员权限运行客户端。'
+            privilege_note = '将音视频文件拖动到 **Client** 端 exe 文件后松开，可转录生成字幕。'
+
         markdown = f'''
 
-项目地址：https://github.com/HaujetZhao/CapsWriter-Offline
+项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline-macOS
 
-**CapsWriter-Offline** 是一个专为 Windows 打造的**完全离线**语音输入工具。
+{platform_intro}
 
 使用步骤：
 
 1. 运行 **Server** 端，它作为「大脑」负责 AI 推理，约占用 1.5G 内存。
-2. 运行 **Client** 端，它作为「耳朵」负责听音和打字上屏。
+2. {launch_step}
 3. 按住快捷键（`{shortcuts_display}`）说话，松开即输入。
-4. 将音视频文件拖动到 **Client** 端 exe 文件后松开，可转录生成字幕。
+4. {privilege_note}
 
 
 特性：
@@ -88,8 +112,8 @@ class TipsDisplay:
 
 注意事项：
 
-1. 当前快捷键：`{shortcuts_display}`，可在 `config.py` 中修改。
-2. 如需在管理员权限运行的程序（如任务管理器、游戏）中输入，请**以管理员权限运行客户端**。
+1. 当前快捷键：`{shortcuts_display}`，可在 `config_client.py` 中修改。
+2. {permission_note}
 3. 识别结果默认去除末尾逗句号。
 4. 录音保存功能：若检测到 `FFmpeg`，会以 `mp3` 压缩保存；否则保存为 `wav` 。
         '''
@@ -108,7 +132,7 @@ class TipsDisplay:
         """显示文件转录模式的启动提示"""
         console.print(f'\n版本：[bold green]{__version__}[/]')
 
-        markdown = '\n项目地址：https://github.com/HaujetZhao/CapsWriter-Offline'
+        markdown = '\n项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline-macOS'
         console.print(Markdown(markdown), highlight=True)
         console.print(f'当前基文件夹：[cyan underline]{os.getcwd()}[/]')
         console.print(f'服务端地址： [cyan underline]{Config.addr}:{Config.port}[/]')

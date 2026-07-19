@@ -23,10 +23,14 @@ from core.logger import get_logger, setup_logger
 setup_logger('client', level=Config.log_level)
 logger = get_logger('client')
 
-# 门面类
-from core.client.app import CapsWriterClient
-
 __all__ = [
     'CapsWriterClient',
 ]
 
+
+def __getattr__(name):
+    if name == 'CapsWriterClient':
+        from core.client.app import CapsWriterClient
+
+        return CapsWriterClient
+    raise AttributeError(name)

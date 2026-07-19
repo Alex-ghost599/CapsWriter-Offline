@@ -9,18 +9,18 @@
 from __future__ import annotations
 
 import re
-import shutil
 import tempfile
 import time
 import wave
 from os import makedirs
 from pathlib import Path
-from subprocess import DEVNULL, PIPE, Popen
+from subprocess import DEVNULL, PIPE, Popen, TimeoutExpired
 from typing import Optional, Tuple, Union
 
 import numpy as np
 
 from config_client import ClientConfig as Config
+from core.tools.external_tools import find_executable
 from . import logger
 
 
@@ -39,14 +39,14 @@ class AudioFileManager:
     - 重命名：根据识别文本重命名文件
     """
     
-    SAMPLE_RATE = 48000
-    
-    def __init__(self):
+    def __init__(self, sample_rate: int = 48000):
         """初始化音频文件管理器"""
+        self.sample_rate = sample_rate
         self.file_path: Optional[Path] = None
         self.file_handle: Optional[AudioWriter] = None
         self.channels: int = 1
-        self._has_ffmpeg = shutil.which('ffmpeg') is not None
+        self._ffmpeg = find_executable('ffmpeg')
+        self._has_ffmpeg = self._ffmpeg is not None
         
         if self._has_ffmpeg:
             logger.debug("检测到 FFmpeg，将使用 MP3 格式保存录音")
@@ -82,10 +82,11 @@ class AudioFileManager:
         if self._has_ffmpeg:
             # 使用 FFmpeg 输出 MP3
             file_path = file_path.with_suffix('.mp3')
+            assert self._ffmpeg is not None
             ffmpeg_command = [
-                'ffmpeg', '-y',
+                self._ffmpeg, '-y',
                 '-f', 'f32le',
-                '-ar', str(self.SAMPLE_RATE),
+                '-ar', str(self.sample_rate),
                 '-ac', str(channels),
                 '-i', '-',
                 '-b:a', '192k',
@@ -99,7 +100,7 @@ class AudioFileManager:
             file_handle = wave.open(str(file_path), 'w')
             file_handle.setnchannels(channels)
             file_handle.setsampwidth(2)  # 16-bit
-            file_handle.setframerate(self.SAMPLE_RATE)
+            file_handle.setframerate(self.sample_rate)
             logger.debug(f"创建 WAV 文件: {file_path}")
         
         self.file_path = file_path
@@ -139,13 +140,26 @@ class AudioFileManager:
         
         try:
             if isinstance(self.file_handle, Popen):
-                self.file_handle.stdin.close()
-                logger.debug("FFmpeg 进程已关闭")
+                process = self.file_handle
+                if process.stdin is not None:
+                    process.stdin.close()
+                try:
+                    return_code = process.wait(timeout=10)
+                except TimeoutExpired:
+                    process.kill()
+                    process.wait()
+                    raise RuntimeError("FFmpeg 完成录音编码超时") from None
+                if return_code != 0:
+                    raise RuntimeError(f"FFmpeg 录音编码失败，退出码 {return_code}")
+                logger.debug("FFmpeg 进程已完成")
             elif isinstance(self.file_handle, wave.Wave_write):
                 self.file_handle.close()
                 logger.debug("WAV 文件已关闭")
         except Exception as e:
             logger.error(f"关闭音频文件时发生错误: {e}")
+            if self.file_path is not None:
+                self.file_path.unlink(missing_ok=True)
+            return None
         finally:
             self.file_handle = None
         

@@ -1,10 +1,14 @@
 # coding: utf-8
-import sherpa_onnx
-import numpy as np
-from typing import Optional, List, Any, Tuple
 from dataclasses import dataclass
-from ..base import BaseASREngine, RecognitionStream, EngineCapabilities, RecognitionResult
+from typing import List, Optional, Tuple
+
+import numpy as np
+
 from core import get_logger
+from ..base import BaseASREngine, EngineCapabilities, RecognitionStream
+from ..sherpa_runtime import load_sherpa_onnx
+
+sherpa_onnx = load_sherpa_onnx()
 
 logger = get_logger('server')
 
@@ -162,7 +166,7 @@ class ParaformerEngine(BaseASREngine):
     ):
         """解码识别流并同步结果"""
         if context:
-            logger.debug(f"ParaformerEngine 不支持解码 context，已忽略")
+            logger.debug("ParaformerEngine 不支持解码 context，已忽略")
         if language and language != 'auto':
             logger.debug(f"ParaformerEngine 是中文专用模型，语言设置 '{language}' 已忽略")
         

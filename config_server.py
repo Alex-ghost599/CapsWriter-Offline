@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 # 版本信息
@@ -10,16 +11,26 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 服务端配置
 class ServerConfig:
-    addr = '0.0.0.0'
-    port = '6016'
+    addr = os.environ.get('CAPSWRITER_SERVER_BIND', '127.0.0.1' if sys.platform == 'darwin' else '0.0.0.0')
+    port = os.environ.get('CAPSWRITER_SERVER_PORT', '6016')
+    max_message_bytes = 8 * 1024 * 1024
+    max_connections = 4
+    max_audio_chunk_bytes = 4 * 1024 * 1024
+    max_audio_seconds = 4 * 60 * 60
+    max_segment_duration = 300
+    max_segment_overlap = 30
+    max_context_chars = 4096
 
     # 语音模型选择：'qwen_asr', 'fun_asr_nano', 'sensevoice', 'paraformer'
-    model_type = 'qwen_asr'
+    model_type = os.environ.get(
+        'CAPSWRITER_MODEL_TYPE',
+        'paraformer' if sys.platform == 'darwin' else 'qwen_asr',
+    )
 
     format_num = True       # 输出时是否将中文数字转为阿拉伯数字
     format_spell = True     # 输出时是否调整中英之间的空格
 
-    enable_tray = True        # 是否启用托盘图标功能
+    enable_tray = sys.platform == 'win32'  # 当前托盘实现依赖 Windows 控制台生命周期
     hotwords_path = Path() / 'hot-server.txt' # 全局热词配置文件路径
 
     # 日志配置
@@ -173,4 +184,3 @@ class ForceAlignerGGUFArgs:
     # 对齐细节
     n_ctx = 3072                # 上下文窗口大小
     dml_pad_to = 30             # 开启 DirectML 加速时，短音频统一填充到指定长度，有加速效果
-

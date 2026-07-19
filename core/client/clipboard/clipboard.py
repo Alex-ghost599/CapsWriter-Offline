@@ -10,14 +10,70 @@
 """
 import asyncio
 import platform
+from dataclasses import dataclass
 from contextlib import contextmanager
+from typing import Any
+
 import pyclip
-from pynput import keyboard
+
+from core.client.platform_input import send_paste_shortcut
 from . import logger
 
 
 # 支持的编码列表
 CLIPBOARD_ENCODINGS = ['utf-8', 'gbk', 'utf-16', 'latin1']
+
+
+@dataclass(frozen=True)
+class MacPasteboardSnapshot:
+    items: tuple[tuple[tuple[str, bytes], ...], ...]
+
+    def restore(self, pasteboard: Any, expected_change_count: int) -> bool:
+        if pasteboard.changeCount() != expected_change_count:
+            logger.info("剪贴板已被用户或其他应用更新，跳过自动恢复")
+            return False
+
+        from AppKit import NSPasteboardItem
+        from Foundation import NSData
+
+        restored_items = []
+        for item_payload in self.items:
+            item = NSPasteboardItem.alloc().init()
+            for pasteboard_type, payload in item_payload:
+                data = NSData.dataWithBytes_length_(payload, len(payload))
+                item.setData_forType_(data, pasteboard_type)
+            restored_items.append(item)
+
+        pasteboard.clearContents()
+        if restored_items:
+            pasteboard.writeObjects_(restored_items)
+        return True
+
+
+def snapshot_macos_pasteboard(pasteboard: Any = None) -> MacPasteboardSnapshot:
+    """Capture every pasteboard item and UTI without reducing it to plain text."""
+    from AppKit import NSPasteboard
+
+    pasteboard = pasteboard or NSPasteboard.generalPasteboard()
+    snapshot_items = []
+    for item in pasteboard.pasteboardItems() or []:
+        payloads = []
+        for pasteboard_type in item.types() or []:
+            data = item.dataForType_(pasteboard_type)
+            if data is not None:
+                payloads.append((str(pasteboard_type), bytes(data)))
+        snapshot_items.append(tuple(payloads))
+    return MacPasteboardSnapshot(tuple(snapshot_items))
+
+
+def write_macos_pasteboard_text(text: str, pasteboard: Any = None) -> int:
+    from AppKit import NSPasteboard, NSPasteboardTypeString
+
+    pasteboard = pasteboard or NSPasteboard.generalPasteboard()
+    pasteboard.clearContents()
+    if not pasteboard.setString_forType_(text, NSPasteboardTypeString):
+        raise RuntimeError("macOS 剪贴板写入失败")
+    return int(pasteboard.changeCount())
 
 
 def safe_paste() -> str:
@@ -81,19 +137,41 @@ def copy_to_clipboard(content: str):
 
 
 @contextmanager
-def save_and_restore_clipboard():
+def save_and_restore_clipboard(pasteboard=None):
     """
     剪贴板保存/恢复上下文管理器
 
     用法:
-        with save_and_restore_clipboard():
+        with save_and_restore_clipboard() as mark_clipboard_updated:
             # 在这里操作剪贴板
             pyclip.copy("临时内容")
+            mark_clipboard_updated()
         # 退出后剪贴板恢复原内容
+
+    macOS 调用方必须在自己的最后一次写入后调用返回函数。若随后有其他应用更新
+    剪贴板，退出上下文时将跳过恢复，避免覆盖用户的新内容。
     """
+    if platform.system() == 'Darwin':
+        from AppKit import NSPasteboard
+
+        if pasteboard is None:
+            pasteboard = NSPasteboard.generalPasteboard()
+        snapshot = snapshot_macos_pasteboard(pasteboard)
+        expected_change_count = int(pasteboard.changeCount())
+
+        def mark_clipboard_updated():
+            nonlocal expected_change_count
+            expected_change_count = int(pasteboard.changeCount())
+
+        try:
+            yield mark_clipboard_updated
+        finally:
+            snapshot.restore(pasteboard, expected_change_count)
+        return
+
     original = safe_paste()
     try:
-        yield
+        yield lambda: None
     finally:
         if original:
             pyclip.copy(original)
@@ -108,28 +186,32 @@ async def paste_text(text: str, restore_clipboard: bool = True):
         text: 要粘贴的文本
         restore_clipboard: 粘贴后是否恢复原剪贴板内容
     """
+    if platform.system() == 'Darwin':
+        from AppKit import NSPasteboard
+
+        pasteboard = NSPasteboard.generalPasteboard()
+        snapshot = snapshot_macos_pasteboard(pasteboard) if restore_clipboard else None
+        expected_change_count = write_macos_pasteboard_text(text, pasteboard)
+        send_paste_shortcut()
+        logger.debug("已发送粘贴命令 (Command+V)")
+        if snapshot is not None:
+            await asyncio.sleep(0.25)
+            snapshot.restore(pasteboard, expected_change_count)
+        return
+
     # 保存剪切板
     original = ''
     if restore_clipboard:
         try:
             original = safe_paste()
-        except:
+        except Exception:
             pass
 
     # 复制要粘贴的文本
     pyclip.copy(text)
     logger.debug(f"已复制文本到剪贴板，长度: {len(text)}")
 
-    # 粘贴结果（使用 pynput 模拟 Ctrl+V）
-    controller = keyboard.Controller()
-    if platform.system() == 'Darwin':
-        # macOS: Command+V
-        with controller.pressed(keyboard.Key.cmd):
-            controller.tap('v')
-    else:
-        # Windows/Linux: Ctrl+V
-        with controller.pressed(keyboard.Key.ctrl):
-            controller.tap('v')
+    send_paste_shortcut()
     
     logger.debug("已发送粘贴命令 (Ctrl+V)")
 

@@ -8,8 +8,7 @@
 import time
 from core.server.state import console
 from config_server import (
-    ServerConfig as Config, 
-    ModelPaths
+    ServerConfig as Config,
 )
 from ..engines.factory import EngineFactory
 from ..engines.base import EngineCapabilities
@@ -39,7 +38,9 @@ class ModelLoader:
         """
         # 1. 延迟导入通用库
         with console.status("载入模块中...", spinner="bouncingBall", spinner_style="yellow"):
-            import sherpa_onnx
+            from ..engines.sherpa_runtime import ensure_sherpa_onnx_runtime
+
+            ensure_sherpa_onnx_runtime()
         
         t1 = time.time()
         model_type = Config.model_type.lower()
@@ -61,8 +62,11 @@ class ModelLoader:
 
             # 5. 加载热词 (如果引擎支持 HOTWORDS 能力)
             if EngineCapabilities.HOTWORDS in caps and Config.hotwords_path.exists():
-                hotwords = [l.strip() for l in Config.hotwords_path.read_text('utf-8').splitlines() 
-                           if l.strip() and not l.strip().startswith('#')]
+                hotwords = [
+                    line.strip()
+                    for line in Config.hotwords_path.read_text('utf-8').splitlines()
+                    if line.strip() and not line.strip().startswith('#')
+                ]
                 self.recognizer.update_hotwords(hotwords)
 
             logger.info(f"全系统初始化完成，耗时: {time.time() - t1:.2f}s")

@@ -6,7 +6,6 @@ WebSocket 管理器 (SocketManager)
 心跳监控、数据发送任务的编排。
 """
 
-import asyncio
 import functools
 import websockets
 from config_server import ServerConfig as Config
@@ -41,7 +40,8 @@ class SocketManager:
         """
         启动 WebSocket 网络服务
         """
-        if self._is_running: return
+        if self._is_running:
+            return
         
         # 0. 启动前自检环境
         if not self._check_port():
@@ -61,13 +61,17 @@ class SocketManager:
 
         # 3. 启动服务
         logger.info(f"正在拉起 WebSocket 服务 (监听: {Config.addr}:{Config.port})")
+        if Config.addr not in ('127.0.0.1', '::1', 'localhost'):
+            logger.warning('服务端正在监听非回环地址；协议未提供身份验证，请仅在受信网络中使用')
         
         async with websockets.serve(
             handler,
             Config.addr,
             Config.port,
             subprotocols=["binary"],
-            max_size=None
+            max_size=Config.max_message_bytes,
+            max_queue=16,
+            compression=None,
         ) as server:
             self._server = server  # 保存 server 引用，用于外部关闭
 

@@ -5,8 +5,7 @@ LLM Typing 输出模式
 - paste=True: 等流式输出完成后一次性粘贴
 - paste=False: 实时流式 write，每个字都打出来
 """
-import asyncio
-import keyboard
+import sys
 
 from config_client import ClientConfig as Config
 from core.tools.asyncio_to_thread import to_thread
@@ -15,9 +14,19 @@ from core.client.clipboard import paste_text
 from . import logger
 
 
+def _write_text(text: str) -> None:
+    if sys.platform == 'darwin':
+        raise RuntimeError("macOS 流式逐字输出不可用，请使用粘贴模式")
+    import keyboard
+
+    keyboard.write(text)
+
+
 async def handle_typing_mode(handler, text: str, paste: bool = None, matched_hotwords=None, role_config=None, content=None) -> tuple:
     """打字输出模式"""
     from .llm_error_handler import handle_llm_error
+    if sys.platform == 'darwin':
+        paste = True
     # 如果没传，则现场检测一次（兼容性）
     if not role_config or content is None:
         role_config, content = handler.detect_role(text)
@@ -63,7 +72,8 @@ async def _process_streaming(handler, role_config, content, matched_hotwords) ->
 
     def stream_write_chunk(chunk: str):
         nonlocal pending_buffer
-        if not chunk: return
+        if not chunk:
+            return
         chunks.append(chunk)
 
         full_current = pending_buffer + chunk
@@ -85,7 +95,7 @@ async def _process_streaming(handler, role_config, content, matched_hotwords) ->
 
         if content_to_write:
             logger.debug(f"output_text: keyboard.write '{content_to_write}'")
-            keyboard.write(content_to_write)
+            _write_text(content_to_write)
             pending_buffer = trailing
         else:
             pending_buffer = trailing
@@ -104,21 +114,25 @@ async def _process_streaming(handler, role_config, content, matched_hotwords) ->
     if not chunks:
         final_text = TextOutput.strip_punc(content)
         logger.debug(f"output_text: keyboard.write '{final_text}' (降级)")
-        keyboard.write(final_text)
+        _write_text(final_text)
         return (final_text, 0, 0.0)
     
     # 如果 LLM 只输出标点，会被拦截，就要做补偿输出
     full_output = ''.join(chunks).strip()
     if len(full_output) == 1 and full_output in Config.trash_punc:
-        keyboard.write(full_output)
+        _write_text(full_output)
     
     return (TextOutput.strip_punc(polished_text), token_count, gen_time)
 
 
 async def output_text(text: str, paste: bool = None):
     """输出文本（根据 paste 或 Config.paste 选择方式）"""
+    if paste is None:
+        paste = Config.paste
+    if sys.platform == 'darwin':
+        paste = True
     if paste:
         await paste_text(text, restore_clipboard=Config.restore_clip)
     else:
         logger.debug(f"output_text: keyboard.write '{text}'")
-        keyboard.write(text)
+        _write_text(text)

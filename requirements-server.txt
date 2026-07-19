@@ -2,7 +2,11 @@
 sherpa-onnx
 numpy
 gguf
-onnxruntime-directml
+onnxruntime-directml; sys_platform == "win32"
+onnxruntime; sys_platform != "win32"
+sentencepiece
+soundfile
+srt
 
 # basic
 rich
