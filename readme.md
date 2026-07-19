@@ -14,19 +14,64 @@ Apple Silicon macOS 手动构建与运行适配。
 ## macOS 源码安装实验版
 
 [`v2.6.0-macos.2`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.2)
-提供可审查的源码安装脚本，不包含预编译 App 或模型。安装 [Homebrew](https://brew.sh) 后执行：
+提供可审查的源码安装脚本，不包含预编译 App 或模型。需要 Apple Silicon Mac、网络连接、
+[Homebrew](https://brew.sh) 和约 5 GB 可用空间。
+
+### 1. 下载、校验并安装
 
 ```bash
+INSTALLER_DIR="$(mktemp -d "${TMPDIR:-/tmp}/capswriter-installer.XXXXXX")"
+cd "$INSTALLER_DIR"
 BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.2
 curl -fLO "$BASE_URL/install-macos.sh"
 curl -fLO "$BASE_URL/SHA256SUMS"
 shasum -a 256 -c SHA256SUMS
+printf '%s  %s\n' \
+  'b8d6f8fc861ae64c46a10e0cd9b224a18fe39323a6d4ba29673995cdf2e57b77' \
+  'install-macos.sh' | shasum -a 256 -c -
 bash install-macos.sh
 ```
 
-脚本会固定安装该 tag，以 `uv` 管理 Python 3.12 和冻结依赖，默认校验下载模型并在本机
-构建 `dist/CapsWriter.app`；用 `--skip-models` 可暂不下载模型。完整参数、启动方式和每台
-Mac 的权限设置见 [macOS 安装与运行](docs/macos-setup.md)。
+两次校验都必须显示 `install-macos.sh: OK`。脚本会固定安装该 tag，以 `uv` 管理 Python 3.12
+和冻结依赖，默认校验下载模型并在本机构建 `dist/CapsWriter.app`。默认目录是
+`~/CapsWriter-Offline-macOS`；只要该路径已经存在，
+安装器就会在 Homebrew 前停止，请用 `--install-dir <新路径>` 另选目录，不要删除或覆盖旧目录。
+使用自定义目录时，也要把后文启动命令中的默认目录替换成该路径。用 `--skip-models` 可暂不
+下载约 530 MB 模型，但在补下载前不能完成真实听写验收。
+
+### 2. 启动本地服务和客户端
+
+安装器不会自动启动程序。先在一个终端保持服务端运行：
+
+```bash
+cd ~/CapsWriter-Offline-macOS
+CAPSWRITER_SERVER_BIND=127.0.0.1 CAPSWRITER_SERVER_PORT=6016 \
+  CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py
+```
+
+再开一个终端启动客户端：
+
+```bash
+open ~/CapsWriter-Offline-macOS/dist/CapsWriter.app
+```
+
+### 3. 授权并完成第一次真人验收
+
+在“系统设置 > 隐私与安全性”中为最终的 `CapsWriter.app` 开启麦克风、辅助功能和输入监控，
+然后退出并重新打开 App。打开 TextEdit，把光标放入文档，由本人按住右 Shift 说话并松开；
+只有识别文本实际写入前台输入框，才算第一次安装完成。测试句不要包含姓名、账号或工作内容等
+敏感信息，因为录音、日志和转写结果默认会保存在本机。每台 Mac 都要分别安装和授权。
+
+完整参数、模型延后下载、配置和排错见 [macOS 安装与运行](docs/macos-setup.md)；安全边界、
+失败续接和逐项验收见 [Agent 安装执行规约](docs/agent-macos-install.md)。
+
+### 4. 交给本机 Agent 协助安装
+
+在目标 Mac 上打开具备终端访问能力的 Codex、Claude Code 或其他 agent，把下面整句话复制给它。
+agent 会先读取[安装执行规约](docs/agent-macos-install.md)，执行可自动化步骤，并在 Homebrew、
+系统权限和真人发声等环节请求你确认：
+
+> 请先完整阅读这份安装执行规约：<https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/blob/develop/docs/agent-macos-install.md>；然后严格按文档在这台 Apple Silicon Mac 上协助我安装和配置 CapsWriter-Offline-macOS：你可以执行必要的终端命令并验证结果，但不得删除或重置已有目录、不得跳过 SHA-256 校验，未经我明确同意不得跳过模型，安装 Homebrew、修改配置或需要 macOS 隐私权限时先征得我确认，最后由我完成真人右 Shift 录音并确认文本实际写入前台应用。
 
 ## ✨ 核心特性
 
@@ -64,6 +109,7 @@ Mac 的权限设置见 [macOS 安装与运行](docs/macos-setup.md)。
 
 详细功能说明请参考 [`docs/`](docs/) 目录：
 - [macOS 安装与运行](docs/macos-setup.md) — uv 环境、模型校验、应用构建和 TCC 权限
+- [Agent 安装执行规约](docs/agent-macos-install.md) — 供本机 agent 执行安装、权限引导和真人验收
 - [环境依赖安装说明](docs/环境依赖安装说明.md) — VC++ 运行库、FFmpeg 安装
 - [热词功能如何使用](docs/热词功能如何使用.md) — 热词替换、规则替换、自定义短语
 - [角色功能如何使用](docs/角色功能如何使用.md) — LLM 角色配置、输出模式、创建新角色
