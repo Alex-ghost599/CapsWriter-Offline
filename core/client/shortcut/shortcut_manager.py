@@ -9,6 +9,7 @@
 4. hold_mode 和 click_mode 支持
 """
 from __future__ import annotations
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -16,8 +17,18 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from pynput import keyboard, mouse
 
 from . import logger
-from core.client.shortcut.key_mapper import *
-from core.client.shortcut.key_mapper import KeyMapper
+from core.client.shortcut.key_mapper import (
+    KEYBOARD_MESSAGES,
+    KEY_DOWN_MESSAGES,
+    KEY_UP_MESSAGES,
+    MOUSE_MESSAGES,
+    WM_KEYUP,
+    WM_SYSKEYUP,
+    WM_XBUTTONDOWN,
+    WM_XBUTTONUP,
+    XBUTTON1,
+    KeyMapper,
+)
 from core.client.shortcut.emulator import ShortcutEmulator
 from core.client.shortcut.event_handler import ShortcutEventHandler
 from core.client.shortcut.task import ShortcutTask
@@ -34,7 +45,7 @@ class ShortcutManager:
     快捷键管理器
 
     统一管理多个快捷键，使用 pynput 监听键盘和鼠标事件。
-    所有事件处理都在 win32_event_filter 中完成，确保高性能和低延迟。
+    Windows 保留底层事件过滤器，其他平台使用 pynput 的标准回调。
     """
 
     def __init__(self, app: CapsWriterClient, shortcuts: List[Shortcut]):
@@ -161,6 +172,42 @@ class ShortcutManager:
 
         return win32_event_filter
 
+    def _handle_key_event(self, key, is_press: bool) -> None:
+        """Handle a platform-neutral pynput keyboard event."""
+        key_name = KeyMapper.key_to_name(key)
+        if not key_name:
+            return
+
+        if self._emulator.is_emulating(key_name):
+            if not is_press:
+                self._emulator.clear_emulating_flag(key_name)
+            return
+        if self.is_restoring(key_name):
+            if not is_press:
+                self.clear_restoring_flag(key_name)
+            return
+
+        task = self.tasks.get(key_name)
+        if task is None:
+            return
+        if is_press:
+            self._event_handler.handle_keydown(key_name, task)
+        else:
+            self._event_handler.handle_keyup(key_name, task)
+
+    def _handle_mouse_event(self, _x, _y, button, pressed: bool) -> None:
+        """Handle side-button events on non-Windows platforms."""
+        button_name = getattr(button, 'name', '')
+        if button_name not in ('x1', 'x2'):
+            return
+        task = self.tasks.get(button_name)
+        if task is None:
+            return
+        if pressed:
+            self._event_handler.handle_keydown(button_name, task)
+        else:
+            self._handle_mouse_keyup(button_name, task)
+
     def _handle_mouse_keyup(self, button_name: str, task) -> None:
         """处理鼠标按键释放事件"""
         # 单击模式
@@ -258,9 +305,15 @@ class ShortcutManager:
             if self.keyboard_listener and self.keyboard_listener.is_alive():
                 logger.debug("键盘监听器已在运行，跳过启动")
             else:
-                self.keyboard_listener = keyboard.Listener(
-                    win32_event_filter=self.create_keyboard_filter()
-                )
+                if sys.platform == 'win32':
+                    self.keyboard_listener = keyboard.Listener(
+                        win32_event_filter=self.create_keyboard_filter()
+                    )
+                else:
+                    self.keyboard_listener = keyboard.Listener(
+                        on_press=lambda key: self._handle_key_event(key, True),
+                        on_release=lambda key: self._handle_key_event(key, False),
+                    )
                 self.keyboard_listener.start()
                 logger.info("键盘监听器已启动")
 
@@ -268,15 +321,20 @@ class ShortcutManager:
             if self.mouse_listener and self.mouse_listener.is_alive():
                 logger.debug("鼠标监听器已在运行，跳过启动")
             else:
-                self.mouse_listener = mouse.Listener(
-                    win32_event_filter=self.create_mouse_filter()
-                )
+                if sys.platform == 'win32':
+                    self.mouse_listener = mouse.Listener(
+                        win32_event_filter=self.create_mouse_filter()
+                    )
+                else:
+                    self.mouse_listener = mouse.Listener(on_click=self._handle_mouse_event)
                 self.mouse_listener.start()
                 logger.info("鼠标监听器已启动")
 
         # 打印所有启用的快捷键
         for shortcut in self.shortcuts:
             if shortcut.enabled:
+                if sys.platform != 'win32' and shortcut.suppress:
+                    logger.warning(f"[{shortcut.key}] 当前平台暂不支持按键抑制，已按非抑制模式监听")
                 mode = "长按" if shortcut.hold_mode else "单击"
                 toggle = "可恢复" if shortcut.is_toggle_key() else "普通键"
                 logger.info(f"  [{shortcut.key}] {mode}模式, 阻塞:{shortcut.suppress}, {toggle}")

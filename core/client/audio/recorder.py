@@ -8,13 +8,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import uuid
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-import websockets
+import soxr
 
 from config_client import ClientConfig as Config
 from core.client.state import console
@@ -28,6 +27,43 @@ if TYPE_CHECKING:
     from core.client.app import CapsWriterClient
 
 # 日志记录器
+
+
+def _mix_to_mono(data: np.ndarray) -> np.ndarray:
+    if data.ndim == 1:
+        return np.ascontiguousarray(data, dtype=np.float32)
+    return np.ascontiguousarray(np.mean(data, axis=1, dtype=np.float32))
+
+
+def prepare_audio_for_server(data: np.ndarray, source_sample_rate: int) -> np.ndarray:
+    """Mix a complete input buffer to mono and resample it to 16 kHz."""
+    mono = _mix_to_mono(data)
+    if source_sample_rate == 16000:
+        return mono
+
+    return np.ascontiguousarray(soxr.resample(mono, source_sample_rate, 16000, quality='HQ'), dtype=np.float32)
+
+
+class StreamingAudioConverter:
+    """Stateful mono converter for the live CoreAudio stream."""
+
+    def __init__(self, source_sample_rate: int):
+        self.source_sample_rate = source_sample_rate
+        self._resampler = None
+        if source_sample_rate != 16000:
+            self._resampler = soxr.ResampleStream(
+                source_sample_rate,
+                16000,
+                num_channels=1,
+                dtype='float32',
+                quality='HQ',
+            )
+
+    def process(self, data: np.ndarray, *, last: bool = False) -> np.ndarray:
+        mono = _mix_to_mono(data)
+        if self._resampler is None:
+            return mono
+        return np.ascontiguousarray(self._resampler.resample_chunk(mono, last=last), dtype=np.float32)
 
 
 class AudioRecorder:
@@ -94,11 +130,29 @@ class AudioRecorder:
             self._start_time = 0.0
             self._duration = 0.0
             self._cache = []
+            converter = StreamingAudioConverter(self.state.audio_sample_rate)
+
+            async def send_audio_chunk(data: np.ndarray, *, last: bool = False) -> None:
+                converted = converter.process(data, last=last)
+                if not converted.size:
+                    return
+                message = AudioMessage(
+                    task_id=self.task_id,
+                    source='mic',
+                    data=base64.b64encode(converted.tobytes()).decode('utf-8'),
+                    is_final=False,
+                    time_start=self._start_time,
+                    seg_duration=Config.mic_seg_duration,
+                    seg_overlap=Config.mic_seg_overlap,
+                    context=Config.context,
+                    language=Config.language,
+                )
+                await self._send_message(message)
             
             # 音频文件管理
             file_path = None
             if Config.save_audio:
-                self._file_manager = AudioFileManager()
+                self._file_manager = AudioFileManager(sample_rate=self.state.audio_sample_rate)
             
             # 从队列读取数据
             while task := await self.state.queue_in.get():
@@ -125,31 +179,18 @@ class AudioRecorder:
                     
                     # 获取音频数据
                     if self._cache:
-                        data = np.concatenate(self._cache)
+                        data = np.concatenate((*self._cache, task['data']))
                         self._cache.clear()
                     else:
                         data = task['data']
                     
                     # 保存音频至本地文件
-                    self._duration += len(data) / 48000
+                    self._duration += len(data) / self.state.audio_sample_rate
                     if Config.save_audio and self._file_manager:
                         self._file_manager.write(data)
                     
                     # 发送音频数据用于识别
-                    message = AudioMessage(
-                        task_id=self.task_id,
-                        source='mic',
-                        data=base64.b64encode(
-                            np.mean(data[::3], axis=1).tobytes()
-                        ).decode('utf-8'),
-                        is_final=False,
-                        time_start=self._start_time,
-                        seg_duration=Config.mic_seg_duration,
-                        seg_overlap=Config.mic_seg_overlap,
-                        context=Config.context,
-                        language=Config.language,
-                    )
-                    asyncio.create_task(self._send_message(message))
+                    await send_audio_chunk(data)
                     
                 elif task['type'] == 'finish':
                     # 如果有缓存的数据未发送，先发送缓存
@@ -157,24 +198,13 @@ class AudioRecorder:
                         data = np.concatenate(self._cache)
                         self._cache.clear()
                         
-                        self._duration += len(data) / 48000
+                        self._duration += len(data) / self.state.audio_sample_rate
                         if Config.save_audio and self._file_manager:
                             self._file_manager.write(data)
 
-                        message = AudioMessage(
-                            task_id=self.task_id,
-                            source='mic',
-                            data=base64.b64encode(
-                                np.mean(data[::3], axis=1).tobytes()
-                            ).decode('utf-8'),
-                            is_final=False,
-                            time_start=self._start_time,
-                            seg_duration=Config.mic_seg_duration,
-                            seg_overlap=Config.mic_seg_overlap,
-                            context=Config.context,
-                            language=Config.language,
-                        )
-                        asyncio.create_task(self._send_message(message))
+                        await send_audio_chunk(data)
+
+                    await send_audio_chunk(np.empty(0, dtype=np.float32), last=True)
 
                     # 完成写入本地文件
                     if Config.save_audio and self._file_manager:
@@ -197,7 +227,7 @@ class AudioRecorder:
                         context=Config.context,
                         language=Config.language,
                     )
-                    asyncio.create_task(self._send_message(message))
+                    await self._send_message(message)
                     break
                     
         except Exception as e:

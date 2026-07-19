@@ -1,44 +1,67 @@
 import os
-from collections.abc import Iterable
+import sys
 from pathlib import Path
 
 # 版本信息
 __version__ = '2.6'
 
-# 项目根目录
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def _default_base_dir() -> Path:
+    if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+        return Path.home() / 'Library' / 'Application Support' / 'CapsWriter-Offline'
+    return Path(__file__).resolve().parent
+
+
+def _macos_shortcut_key() -> str:
+    return os.environ.get('CAPSWRITER_HOTKEY', 'shift_r').strip() or 'shift_r'
+
+
+# 源码运行时使用仓库目录；macOS App 使用可写的 Application Support 目录。
+BASE_DIR = str(Path(os.environ.get('CAPSWRITER_HOME', _default_base_dir())).expanduser().resolve())
+Path(BASE_DIR).mkdir(parents=True, exist_ok=True)
 
 
 # 客户端配置
 class ClientConfig:
-    addr = '127.0.0.1'          # Server 地址
-    port = '6016'               # Server 端口
+    addr = os.environ.get('CAPSWRITER_SERVER_ADDR', '127.0.0.1')
+    port = os.environ.get('CAPSWRITER_SERVER_PORT', '6016')
 
     # 快捷键配置列表
-    shortcuts = [
-        {
-            'key': 'caps_lock',     # 监听大写锁定键
-            'type': 'keyboard',     # 是键盘快捷键
-            'suppress': True,      # 阻塞按键（短按会补发）
-            'hold_mode': True,      # 长按模式
-            'enabled': True         # 启用此快捷键
-        },
-        {
-            'key': 'x2',
-            'type': 'mouse',
-            'suppress': True,
-            'hold_mode': True,
-            'enabled': True
-        },
-    ]
+    shortcuts = (
+        [
+            {
+                'key': _macos_shortcut_key(),
+                'type': 'keyboard',
+                'suppress': False,
+                'hold_mode': True,
+                'enabled': True,
+            },
+        ]
+        if sys.platform == 'darwin'
+        else [
+            {
+                'key': 'caps_lock',     # 监听大写锁定键
+                'type': 'keyboard',     # 是键盘快捷键
+                'suppress': True,       # 阻塞按键（短按会补发）
+                'hold_mode': True,      # 长按模式
+                'enabled': True         # 启用此快捷键
+            },
+            {
+                'key': 'x2',
+                'type': 'mouse',
+                'suppress': True,
+                'hold_mode': True,
+                'enabled': True
+            },
+        ]
+    )
 
     threshold    = 0.3          # 快捷键触发阈值（秒）
 
-    paste        = False        # 是否以写入剪切板然后模拟 Ctrl-V 粘贴的方式输出结果
+    paste        = sys.platform == 'darwin'  # macOS 使用剪贴板与 Command-V 输出
     restore_clip = True         # 模拟粘贴后是否恢复剪贴板
-    paste_apps   = ['WeiXin.exe', 'Telegram.exe']  # 匹配时强制粘贴
+    paste_apps   = [] if sys.platform == 'darwin' else ['WeiXin.exe', 'Telegram.exe']
 
-    enter_apps   = [('happ.exe', 0.5), ('hexin.exe', 0.5)]  # (应用名, 延迟秒数) 输出完成后自动回车，如同花顺，输入股票名后，需要回车才能切换
+    enter_apps   = [] if sys.platform == 'darwin' else [('happ.exe', 0.5), ('hexin.exe', 0.5)]
 
     save_audio = True           # 是否保存录音文件
     audio_name_len = 20         # 将录音识别结果的前多少个字存储到录音文件名中，建议不要超过200
@@ -48,7 +71,7 @@ class ClientConfig:
 
     trash_punc = '，。,.'       # 识别结果要消除的末尾标点
     trash_punc_thresh = 8       # 识别结果的单词数量低于阈值时，强制去除末尾标点
-    trash_punc_apps = ['WeiXin.exe', ]   # 对于指定的应用，强制去除末尾标点
+    trash_punc_apps = [] if sys.platform == 'darwin' else ['WeiXin.exe', ]
 
     traditional_convert = False     # 是否将识别结果转换为繁体中文
     traditional_locale = 'zh-hant'  # 繁体地区：'zh-hant'（标准繁体）, 'zh-tw'（台湾繁体）, 'zh-hk'（香港繁体）
@@ -58,16 +81,20 @@ class ClientConfig:
     hot_similar = 0.6           # RAG 相似热词阈值（低阈值，用于 LLM 上下文）
     hot_rule = True             # 是否启用自定义规则替换（基于正则表达式）
 
-    llm_enabled = True          # 是否启用 LLM 润色功能，需要配置 LLM/ 目录下的角色文件
+    llm_enabled = sys.platform != 'darwin'  # macOS 首版先验证离线 ASR 主链路
     llm_stop_key = 'esc'        # 中断 LLM 输出的快捷键
 
-    enable_tray = True          # 客户端默认启用托盘图标功能
+    enable_tray = sys.platform == 'win32'  # 当前托盘生命周期仅适配 Windows
 
     # 日志配置
     log_level = 'DEBUG'          # 日志级别：'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
     mic_seg_duration = 60       # 麦克风听写时分段长度：60秒
     mic_seg_overlap = 4         # 麦克风听写时分段重叠：4秒
+    audio_device = os.environ.get('CAPSWRITER_AUDIO_DEVICE') or None
+    if isinstance(audio_device, str) and audio_device.isdigit():
+        audio_device = int(audio_device)
+    audio_sample_rate = int(os.environ.get('CAPSWRITER_AUDIO_SAMPLE_RATE', '48000'))
 
     file_seg_duration = 60      # 转录文件时分段长度
     file_seg_overlap = 4        # 转录文件时分段重叠
@@ -130,4 +157,3 @@ r"""
   {'key': 'f12', 'type': 'keyboard', 'suppress': True, 'hold_mode': True, 'enabled': True}, 
   {'key': 'x2', 'type': 'mouse', 'suppress': True, 'hold_mode': True, 'enabled': True}, 
 """
-

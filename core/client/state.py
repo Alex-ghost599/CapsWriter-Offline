@@ -12,7 +12,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional, Dict
 
 if TYPE_CHECKING:
     import sounddevice as sd
@@ -61,6 +61,7 @@ class ClientState:
 
     recording: bool = False
     recording_start_time: float = 0.0
+    audio_sample_rate: int = 48000
     audio_files: Dict[str, Path] = field(default_factory=dict)
 
     # 最近一次识别结果（用于手动添加纠错记录）
@@ -176,6 +177,4 @@ class ClientState:
             text: 输出文本内容
         """
         self.last_output_text = text
-
-
 

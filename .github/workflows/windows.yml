@@ -1,0 +1,25 @@
+name: Windows regression
+
+on:
+  push:
+    branches: [develop, 'feat--**']
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.29'
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-groups --frozen
+      - run: uv run python -c "from core.client.app import CapsWriterClient; from core.client.shortcut.key_mapper import KeyMapper"
+      - run: uv run pytest -q

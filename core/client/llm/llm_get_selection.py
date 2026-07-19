@@ -10,7 +10,7 @@ LLM 获取选中文字功能
 """
 import time
 import pyclip
-import keyboard
+from core.client.platform_input import send_copy_shortcut
 from . import logger
 from .llm_clipboard import safe_paste
 
@@ -42,7 +42,7 @@ def get_selected_text(role_config, state) -> str:
         original_clipboard = safe_paste()
 
         # 模拟 Ctrl+C 复制选中的文字
-        keyboard.press_and_release('ctrl+c')
+        send_copy_shortcut()
 
         # 等待复制操作完成
         time.sleep(0.1)
@@ -91,4 +91,3 @@ def record_selection_usage(role_config, selection_text: str):
     global _last_selection_by_role
     role_name = role_config.name
     _last_selection_by_role[role_name] = selection_text
-

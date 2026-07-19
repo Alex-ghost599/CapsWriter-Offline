@@ -1,8 +1,14 @@
 # coding: utf-8
 from __future__ import annotations
+
+import sys
 from pathlib import Path
+
 from . import logger
-from config_client import ClientConfig as Config, __version__
+
+
+def _has_interactive_stdin() -> bool:
+    return bool(sys.stdin and sys.stdin.isatty())
 
 
 class FileRunner:
@@ -56,7 +62,8 @@ class FileRunner:
             
             logger.info("所有文件已处理完成")
             
-            input('\n按回车退出\n')
+            if _has_interactive_stdin():
+                input('\n按回车退出\n')
 
         except Exception as e:
             logger.error(f"文件模式运行异常: {e}", exc_info=True)
