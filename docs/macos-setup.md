@@ -27,9 +27,10 @@ bash install-macos.sh
 bash install-macos.sh --skip-models
 ```
 
-其他可用参数见 `bash install-macos.sh --help`。安装器不会覆盖有改动或版本不符的已有
-checkout，也不会自动启动服务或客户端。每台 Mac 都需要各自执行安装，并分别授予
-麦克风、辅助功能和输入监控权限。
+其他可用参数见 `bash install-macos.sh --help`。只要安装目录已经存在，安装器就会在执行
+Homebrew 前停止；请改用新的 `--install-dir`，已有目录始终由用户手动管理。安装器不会
+自动启动服务或客户端。每台 Mac 都需要各自执行安装，并分别授予麦克风、辅助功能和
+输入监控权限。
 
 ## 1. 手动安装环境
 

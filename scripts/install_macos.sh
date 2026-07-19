@@ -29,6 +29,7 @@ Options:
   -h, --help            Show this help
 
 The installer never resets an existing checkout and never starts the app.
+The install directory must not already exist.
 EOF
 }
 
@@ -83,6 +84,7 @@ take_value() {
     local option="$1"
     local value="${2:-}"
     [[ -n "$value" ]] || die "$option requires a value."
+    [[ "$value" != -* ]] || die "$option requires a value, not another option."
     printf '%s' "$value"
 }
 
@@ -147,6 +149,10 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
     git check-ref-format --branch "$REF" >/dev/null 2>&1 || die "Invalid Git ref: $REF"
 fi
 
+if [[ -e "$INSTALL_DIR" || -L "$INSTALL_DIR" ]]; then
+    die "Install directory already exists; choose a fresh --install-dir: $INSTALL_DIR"
+fi
+
 if [[ "$SKIP_SYSTEM_DEPS" -eq 0 ]]; then
     if [[ "$DRY_RUN" -eq 0 ]] && ! command -v brew >/dev/null 2>&1; then
         die 'Homebrew is required. Install it from https://brew.sh, then retry.'
@@ -162,35 +168,8 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
     require_command ffmpeg 'ffmpeg installation failed or ffmpeg is not in PATH.'
 fi
 
-if [[ -e "$INSTALL_DIR" && "$DRY_RUN" -eq 0 ]]; then
-    [[ -d "$INSTALL_DIR/.git" ]] || die "Install directory exists and is not a Git checkout: $INSTALL_DIR"
-
-    remote_url="$(git -C "$INSTALL_DIR" remote get-url origin 2>/dev/null || true)"
-    case "$remote_url" in
-        "$REPO_URL"|'https://github.com/Alex-ghost599/CapsWriter-Offline-macOS'|\
-        'git@github.com:Alex-ghost599/CapsWriter-Offline-macOS.git'|\
-        'git@github.com:Alex-ghost599/CapsWriter-Offline-macOS')
-            ;;
-        *)
-            die "Existing checkout has an unexpected origin: ${remote_url:-<missing>}"
-            ;;
-    esac
-
-    [[ -z "$(git -C "$INSTALL_DIR" status --porcelain)" ]] || \
-        die "Existing checkout has local changes; use another --install-dir or clean it manually."
-
-    run git -C "$INSTALL_DIR" fetch --depth 1 origin "$REF"
-    expected_commit="$(git -C "$INSTALL_DIR" rev-parse 'FETCH_HEAD^{commit}')"
-    current_commit="$(git -C "$INSTALL_DIR" rev-parse 'HEAD^{commit}')"
-    [[ "$current_commit" == "$expected_commit" ]] || \
-        die "Existing checkout is not at $REF; use another --install-dir or switch it manually."
-elif [[ "$DRY_RUN" -eq 0 ]]; then
-    run mkdir -p "$(dirname "$INSTALL_DIR")"
-    run git clone --depth 1 --single-branch --branch "$REF" "$REPO_URL" "$INSTALL_DIR"
-else
-    run mkdir -p "$(dirname "$INSTALL_DIR")"
-    run git clone --depth 1 --single-branch --branch "$REF" "$REPO_URL" "$INSTALL_DIR"
-fi
+run mkdir -p "$(dirname "$INSTALL_DIR")"
+run git clone --depth 1 --single-branch --branch "$REF" "$REPO_URL" "$INSTALL_DIR"
 
 run_in_dir "$INSTALL_DIR" uv python install 3.12
 run_in_dir "$INSTALL_DIR" uv sync --all-groups --frozen

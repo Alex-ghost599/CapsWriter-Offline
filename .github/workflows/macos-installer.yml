@@ -1,0 +1,25 @@
+name: macOS installer
+
+on:
+  push:
+    branches: [develop, 'feat--**']
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.29'
+          enable-cache: false
+      - run: brew install shellcheck
+      - run: shellcheck --shell=bash scripts/install_macos.sh
+      - run: /bin/bash -n scripts/install_macos.sh
+      - run: uvx --from pytest==9.1.1 pytest -q tests/test_macos_installer.py
