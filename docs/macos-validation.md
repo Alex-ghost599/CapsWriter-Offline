@@ -100,7 +100,7 @@ uv run pytest -q
 git diff --check
 ```
 
-结果：39 passed, 1 skipped，跳过项为只能在 Windows 执行的原生 Win32 filter
+结果：40 passed, 1 skipped，跳过项为只能在 Windows 执行的原生 Win32 filter
 回归。所有本分支新增/修改 Python 文件 Ruff 通过。另在 `/tmp` 创建独立
 `UV_PROJECT_ENVIRONMENT`，执行 `uv sync --all-groups --frozen`；项目运行时加载器修复上游
 sherpa-onnx wheel 的 macOS rpath 后成功导入 sherpa-onnx 1.13.4 与 soxr 1.1.0，
@@ -109,13 +109,9 @@ Ruff 仍有 930 个上游既有问题，主要来自未改的实验脚本、UI �
 本适配不批量改写这些文件。
 
 fork 分支已配置 `windows-latest` 回归，覆盖 uv 冻结安装、客户端导入、
-CapsLock/X2 Win32 filter、Ctrl-V 剪贴板恢复与 LLM Ctrl-C 选区路径。最终结果以
-匿名化历史重建后的 fork-local PR checks 为准，不在公开文档中保留已清理提交的标识。
-
-独立 reviewer 对目标、平台边界、安全限制、失败模式和证据质量完成多轮复核，
-最终结论为 PASS，未发现未关闭 High/Medium。FFmpeg 超时分支现已覆盖
-`kill -> wait -> 删除残件 -> None`；剩余 Low 是剪贴板 changeCount 检查后仍存在
-极小的系统级 TOCTOU 窗口。
+CapsLock/X2 Win32 filter、Ctrl-V 剪贴板恢复与 LLM Ctrl-C 选区路径。匿名化历史
+重建后的回归结果为 36 passed, 5 skipped；公开文档不保留已清理提交或 Actions
+运行的标识。FFmpeg 超时分支覆盖 `kill -> wait -> 删除残件 -> None`。
 
 ## 未关闭门槛
 
