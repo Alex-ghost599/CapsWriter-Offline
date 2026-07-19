@@ -2,9 +2,10 @@
 
 ![demo](assets/demo.png)
 
-> **按住 CapsLock 说话，松开就上屏。就这么简单。**
+> **Windows 按住 CapsLock，macOS 按住右 Shift；说话后松开就上屏。**
 
-**CapsWriter-Offline** 是一个专为 Windows 打造的**完全离线**语音输入工具。
+**CapsWriter-Offline** 是一个**完全离线**语音输入工具，支持 Windows；本 fork 另提供
+Apple Silicon macOS 手动构建与运行适配。
 
 ## ✨ 核心特性
 
@@ -41,6 +42,7 @@
 | Qwen3-ASR-1.7B | 4.0s | 1.0s |
 
 详细功能说明请参考 [`docs/`](docs/) 目录：
+- [macOS 安装与运行](docs/macos-setup.md) — uv 环境、模型校验、应用构建和 TCC 权限
 - [环境依赖安装说明](docs/环境依赖安装说明.md) — VC++ 运行库、FFmpeg 安装
 - [热词功能如何使用](docs/热词功能如何使用.md) — 热词替换、规则替换、自定义短语
 - [角色功能如何使用](docs/角色功能如何使用.md) — LLM 角色配置、输出模式、创建新角色
@@ -54,10 +56,12 @@
 
 ## 💻 平台支持
 
-目前**仅能保证在 Windows 10/11 (64位) 下完美运行**。
+Windows 10/11（64 位）仍是上游主要支持平台。
 
 - **Linux**：暂无环境进行测试和打包，无法保证兼容性。
-- **MacOS**：由于底层的 `keyboard` 库已放弃支持 MacOS，且系统限制极多，暂时无法支持。
+- **macOS**：本 fork 已在 Apple Silicon 上使用 USB 物理麦克风和真人说话验证
+  Paraformer 服务端、右 Shift 全局热键、TextEdit/Chrome 上屏及剪贴板恢复。当前需要按
+  [macOS 安装与运行](docs/macos-setup.md) 从源码构建，尚未使用 Developer ID 签名或公证发布。
 
 [LazyTyper](https://lazytyper.com/) 和 [闪电说](https://shandianshuo.cn/) 也是很优秀的作品，都有离线引擎，都支持 Windows Linux 与 MacOS，并都有漂亮的图形化页面，推荐使用。
 
@@ -71,6 +75,9 @@ CapsWriter 的特别之处在于追求：
 
 ## 🎬 快速开始
 
+Apple Silicon macOS 请直接按 [macOS 安装与运行](docs/macos-setup.md) 操作。以下步骤为
+Windows 发行包流程。
+
 1.  **准备环境**：确保安装了 [VC++ 运行库](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)。若要使用文件转录功能，还需安装 [ffmpeg](https://ffmpeg.org/download.html) 并确保其在系统 PATH 中。
 2.  **下载解压**：下载 [Latest Release](https://github.com/HaujetZhao/CapsWriter-Offline/releases/latest) 里的软件本体，再到 [Models Release](https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/models) 下载模型压缩包，将模型解压，放入 `models` 文件夹中对应模型的文件夹里。
 3.  **启动服务**：双击 `start_server.exe`，**它会自动最小化到托盘菜单**。
@@ -81,6 +88,8 @@ CapsWriter 的特别之处在于追求：
 ## ⚙️ 个性化配置
 
 所有的设置都在根目录的 `config_server.py` 和 `config_client.py` 里，可直接编辑。
+macOS 默认仅配置右 Shift（`shift_r`）作为录音键。源码或终端启动时可通过
+`CAPSWRITER_HOTKEY=f10` 临时改为其他单键；当前不支持 `Option+Space` 这类组合键。
 
 
 ## 🛠️ 常见问题
