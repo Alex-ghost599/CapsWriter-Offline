@@ -1,6 +1,10 @@
-# CapsWriter-Offline
+# CapsWriter-Offline-macOS
 
 ![demo](assets/demo.png)
+
+> [!NOTE]
+> 本仓库基于 [@HaujetZhao/CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline)
+> 进行 macOS 可用适配；上游仍以 Windows 为主要支持平台。
 
 > **Windows 按住 CapsLock，macOS 按住右 Shift；说话后松开就上屏。**
 
@@ -110,7 +114,7 @@ A: `Win+R` 输入 `shell:startup` 打开启动文件夹，将服务端、客户�
 更多问题请参阅 [docs/常见问题.md](docs/常见问题.md)。
 
 
-## 🚀 我的其他优质项目推荐
+## 🚀 上游作者的其他项目
 
 | 项目名称 | 说明 | 体验地址 |
 | :--- | :--- | :--- |
@@ -130,12 +134,17 @@ A: `Win+R` 输入 `shell:startup` 打开启动文件夹，将服务端、客户�
 -   [Sherpa-ONNX](https://github.com/k2-fsa/sherpa-onnx)
 -   [FunASR](https://github.com/alibaba-damo-academy/FunASR)
 
-感谢 Google Antigravity、Anthropic Claude、GLM、DeepSeek，如果不是这些编程助手，许多功能（例如基于音素的热词检索算法）我是无力实现的。
+上游作者感谢 Google Antigravity、Anthropic Claude、GLM、DeepSeek 对项目开发的帮助。
 
-特别感谢那些慷慨解囊的捐助者，你们的捐助让我用在了购买这些优质的 AI 编程助手服务，并最终将这些成果反馈到了软件的更新里。
+同时感谢支持上游项目并帮助其持续开发的捐助者。
 
 
-如果觉得好用，欢迎点个 Star 或者打赏支持：
+如需支持原作者，可使用上游保留的赞助入口：
 
 
 ![sponsor](assets/sponsor.jpg)	
+
+## 许可证
+
+本仓库沿用上游的 [MIT License](LICENSE)。允许使用、复制、修改和再分发；分发时须保留
+`LICENSE` 中的原版权声明与许可声明。

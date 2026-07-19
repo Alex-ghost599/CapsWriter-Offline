@@ -88,7 +88,7 @@ class TipsDisplay:
 
         markdown = f'''
 
-项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline
+项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline-macOS
 
 {platform_intro}
 
@@ -132,7 +132,7 @@ class TipsDisplay:
         """显示文件转录模式的启动提示"""
         console.print(f'\n版本：[bold green]{__version__}[/]')
 
-        markdown = '\n项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline'
+        markdown = '\n项目地址：https://github.com/Alex-ghost599/CapsWriter-Offline-macOS'
         console.print(Markdown(markdown), highlight=True)
         console.print(f'当前基文件夹：[cyan underline]{os.getcwd()}[/]')
         console.print(f'服务端地址： [cyan underline]{Config.addr}:{Config.port}[/]')
