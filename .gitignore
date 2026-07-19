@@ -31,6 +31,7 @@ MANIFEST
 *.manifest
 *.spec
 *.zip
+!packaging/macos/CapsWriterClient.spec
 
 # 安装日志
 pip-log.txt
@@ -176,6 +177,8 @@ test_*.py
 test_*.ipynb 
 test_*.md 
 test_*.txt
+!tests/
+!tests/**/*.py
 stocks.txt 
 example_*.py
 example_.ipynb

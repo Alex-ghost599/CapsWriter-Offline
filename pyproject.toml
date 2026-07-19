@@ -1,0 +1,62 @@
+[project]
+name = "capswriter-offline"
+version = "2.6.0"
+description = "Offline speech-to-text client and server"
+readme = "readme.md"
+requires-python = ">=3.12,<3.13"
+license = { file = "LICENSE" }
+dependencies = [
+    "colorama",
+    "gguf",
+    "httpx",
+    "keyboard; sys_platform == 'win32'",
+    "markdown",
+    "numba",
+    "numpy",
+    "ollama",
+    "onnxruntime; sys_platform != 'win32'",
+    "onnxruntime-directml; sys_platform == 'win32'",
+    "openai",
+    "pillow",
+    "pyclip",
+    "pynput",
+    "pyobjc-framework-avfoundation; sys_platform == 'darwin'",
+    "pyobjc-framework-cocoa; sys_platform == 'darwin'",
+    "pyobjc-framework-quartz; sys_platform == 'darwin'",
+    "pypinyin",
+    "pystray",
+    "rapidfuzz",
+    "rich",
+    "sentencepiece",
+    "sherpa-onnx",
+    "scipy",
+    "sounddevice",
+    "soundfile",
+    "soxr>=1.1.0",
+    "srt",
+    "tkhtmlview",
+    "typer",
+    "watchdog",
+    "websockets",
+]
+
+[dependency-groups]
+dev = [
+    "psutil",
+    "pyinstaller",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
