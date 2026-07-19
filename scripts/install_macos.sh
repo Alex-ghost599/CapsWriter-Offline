@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 readonly REPO_URL='https://github.com/Alex-ghost599/CapsWriter-Offline-macOS.git'
-readonly DEFAULT_REF='v2.6.0-macos.1'
+readonly DEFAULT_REF='v2.6.0-macos.2'
 
 INSTALL_DIR="${HOME}/CapsWriter-Offline-macOS"
 REF="${DEFAULT_REF}"
@@ -21,7 +21,7 @@ Usage:
 
 Options:
   --install-dir PATH    Install directory (default: ~/CapsWriter-Offline-macOS)
-  --ref REF             Git tag or branch to install (default: v2.6.0-macos.1)
+  --ref REF             Git tag or branch to install (default: v2.6.0-macos.2)
   --skip-models         Skip the verified ASR and punctuation model download
   --skip-build          Skip building dist/CapsWriter.app
   --skip-system-deps    Do not run Homebrew; require uv and ffmpeg in PATH
@@ -194,7 +194,7 @@ fi
 
 printf '\nInstallation steps completed. The installer did not start any process.\n'
 printf 'Start the local server in one Terminal window:\n'
-printf '  cd %q && CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py\n' "$INSTALL_DIR"
+printf '  cd %q && CAPSWRITER_SERVER_BIND=127.0.0.1 CAPSWRITER_SERVER_PORT=6016 CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py\n' "$INSTALL_DIR"
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
     printf 'Then start the client:\n'
     printf '  open %q\n' "$INSTALL_DIR/dist/CapsWriter.app"
