@@ -3,13 +3,44 @@
 当前适配目标为 Apple Silicon macOS。默认使用 Paraformer 语音模型和
 Punct-CT-Transformer 标点模型，服务端与客户端均在本机离线运行。
 
-## 1. 安装环境
+## 推荐：从 Release 安装源码版
+
+[`v2.6.0-macos.1`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.1)
+是 macOS 源码安装实验版。Release 不包含预编译 App 或模型，只提供可审查的安装脚本和
+SHA-256 校验文件；脚本会拉取固定 tag、以 `uv` 安装冻结依赖、校验下载模型并在本机
+构建 `CapsWriter.app`。
+
+先安装 [Homebrew](https://brew.sh)，再在终端执行：
+
+```bash
+BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.1
+curl -fLO "$BASE_URL/install-macos.sh"
+curl -fLO "$BASE_URL/SHA256SUMS"
+shasum -a 256 -c SHA256SUMS
+bash install-macos.sh
+```
+
+默认安装到 `~/CapsWriter-Offline-macOS`，并下载约 530 MB 的 Paraformer 和标点模型。
+暂时不下载模型可执行：
+
+```bash
+bash install-macos.sh --skip-models
+```
+
+其他可用参数见 `bash install-macos.sh --help`。安装器不会覆盖有改动或版本不符的已有
+checkout，也不会自动启动服务或客户端。每台 Mac 都需要各自执行安装，并分别授予
+麦克风、辅助功能和输入监控权限。
+
+## 1. 手动安装环境
 
 ```bash
 brew install uv ffmpeg
-cd ~/CapsWriter-Offline
+git clone --depth 1 --branch v2.6.0-macos.1 \
+  https://github.com/Alex-ghost599/CapsWriter-Offline-macOS.git \
+  ~/CapsWriter-Offline-macOS
+cd ~/CapsWriter-Offline-macOS
 uv python install 3.12
-uv sync --all-groups
+uv sync --all-groups --frozen
 ```
 
 仓库固定 Python 3.12，所有解释器、虚拟环境与 Python 依赖均由 `uv` 管理。
@@ -60,7 +91,8 @@ Command-V 和监听全局右 Shift。按住右 Shift 说话，松开后识别文
 
 手动构建使用 ad-hoc 签名。每次重建二进制后，macOS 可能不继承上一版的
 TCC 授权，需删除旧权限项、重新添加最终 `CapsWriter.app` 并再启动。要做稳定
-分发，仍需 Apple Developer 签名身份与公证。
+的免警告二进制分发，仍需 Apple Developer 签名身份与公证；这不影响当前源码安装版
+作为 GitHub Release 发布和使用。
 
 ## 5. 源码调试
 

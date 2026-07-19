@@ -11,6 +11,23 @@
 **CapsWriter-Offline** 是一个**完全离线**语音输入工具，支持 Windows；本 fork 另提供
 Apple Silicon macOS 手动构建与运行适配。
 
+## macOS 源码安装实验版
+
+[`v2.6.0-macos.1`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.1)
+提供可审查的源码安装脚本，不包含预编译 App 或模型。安装 [Homebrew](https://brew.sh) 后执行：
+
+```bash
+BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.1
+curl -fLO "$BASE_URL/install-macos.sh"
+curl -fLO "$BASE_URL/SHA256SUMS"
+shasum -a 256 -c SHA256SUMS
+bash install-macos.sh
+```
+
+脚本会固定安装该 tag，以 `uv` 管理 Python 3.12 和冻结依赖，默认校验下载模型并在本机
+构建 `dist/CapsWriter.app`；用 `--skip-models` 可暂不下载模型。完整参数、启动方式和每台
+Mac 的权限设置见 [macOS 安装与运行](docs/macos-setup.md)。
+
 ## ✨ 核心特性
 
 -   **语音输入**：按住 `CapsLock键` 或 `鼠标侧键X2` 说话，松开即输入，超低延迟，默认去除末尾逗句号。支持对讲机模式和单击录音模式。
@@ -79,8 +96,8 @@ CapsWriter 的特别之处在于追求：
 
 ## 🎬 快速开始
 
-Apple Silicon macOS 请直接按 [macOS 安装与运行](docs/macos-setup.md) 操作。以下步骤为
-Windows 发行包流程。
+Apple Silicon macOS 请使用上面的 Release 源码安装入口，或按
+[macOS 安装与运行](docs/macos-setup.md) 手动操作。以下步骤为 Windows 发行包流程。
 
 1.  **准备环境**：确保安装了 [VC++ 运行库](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)。若要使用文件转录功能，还需安装 [ffmpeg](https://ffmpeg.org/download.html) 并确保其在系统 PATH 中。
 2.  **下载解压**：下载 [Latest Release](https://github.com/HaujetZhao/CapsWriter-Offline/releases/latest) 里的软件本体，再到 [Models Release](https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/models) 下载模型压缩包，将模型解压，放入 `models` 文件夹中对应模型的文件夹里。
