@@ -11,7 +11,11 @@ pytestmark = pytest.mark.skipif(
     reason='macOS source installer tests run in the dedicated macOS job',
 )
 
-SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'install_macos.sh'
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / 'scripts' / 'install_macos.sh'
+README = ROOT / 'readme.md'
+MACOS_SETUP = ROOT / 'docs' / 'macos-setup.md'
+RELEASE = 'v2.6.0-macos.2'
 
 
 def write_executable(path: Path, contents: str) -> None:
@@ -56,6 +60,14 @@ def test_installer_help():
     assert result.returncode == 0
     assert '--skip-models' in result.stdout
     assert '--dry-run' in result.stdout
+    assert f'default: {RELEASE}' in result.stdout
+
+
+def test_release_docs_match_the_installer_default():
+    for path in (README, MACOS_SETUP):
+        contents = path.read_text(encoding='utf-8')
+        assert RELEASE in contents
+        assert 'v2.6.0-macos.1' not in contents
 
 
 def test_installer_dry_run_is_non_destructive(tmp_path: Path):
@@ -72,10 +84,17 @@ def test_installer_dry_run_is_non_destructive(tmp_path: Path):
     )
 
     assert result.returncode == 0, result.stderr
+    assert f'Ref:        {RELEASE}' in result.stdout
+    assert f'--branch {RELEASE}' in result.stdout
     assert 'git clone' in result.stdout
     assert 'uv sync --all-groups --frozen' in result.stdout
     assert 'Skipping model download' in result.stdout
     assert 'Skipping client build' in result.stdout
+    assert (
+        'CAPSWRITER_SERVER_BIND=127.0.0.1 '
+        'CAPSWRITER_SERVER_PORT=6016 '
+        'CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py'
+    ) in result.stdout
     assert not install_dir.exists()
 
 

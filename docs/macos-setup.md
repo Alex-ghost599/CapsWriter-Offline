@@ -5,7 +5,7 @@ Punct-CT-Transformer 标点模型，服务端与客户端均在本机离线运�
 
 ## 推荐：从 Release 安装源码版
 
-[`v2.6.0-macos.1`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.1)
+[`v2.6.0-macos.2`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.2)
 是 macOS 源码安装实验版。Release 不包含预编译 App 或模型，只提供可审查的安装脚本和
 SHA-256 校验文件；脚本会拉取固定 tag、以 `uv` 安装冻结依赖、校验下载模型并在本机
 构建 `CapsWriter.app`。
@@ -13,7 +13,7 @@ SHA-256 校验文件；脚本会拉取固定 tag、以 `uv` 安装冻结依赖�
 先安装 [Homebrew](https://brew.sh)，再在终端执行：
 
 ```bash
-BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.1
+BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.2
 curl -fLO "$BASE_URL/install-macos.sh"
 curl -fLO "$BASE_URL/SHA256SUMS"
 shasum -a 256 -c SHA256SUMS
@@ -36,7 +36,7 @@ Homebrew 前停止；请改用新的 `--install-dir`，已有目录始终由用�
 
 ```bash
 brew install uv ffmpeg
-git clone --depth 1 --branch v2.6.0-macos.1 \
+git clone --depth 1 --branch v2.6.0-macos.2 \
   https://github.com/Alex-ghost599/CapsWriter-Offline-macOS.git \
   ~/CapsWriter-Offline-macOS
 cd ~/CapsWriter-Offline-macOS
@@ -60,7 +60,8 @@ uv run python scripts/download_macos_models.py
 ## 3. 启动服务端
 
 ```bash
-CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py
+CAPSWRITER_SERVER_BIND=127.0.0.1 CAPSWRITER_SERVER_PORT=6016 \
+  CAPSWRITER_MODEL_TYPE=paraformer uv run python start_server.py
 ```
 
 服务默认仅监听 `127.0.0.1:6016`。保持此终端运行。WebSocket 对单帧、

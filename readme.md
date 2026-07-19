@@ -13,11 +13,11 @@ Apple Silicon macOS 手动构建与运行适配。
 
 ## macOS 源码安装实验版
 
-[`v2.6.0-macos.1`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.1)
+[`v2.6.0-macos.2`](https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/tag/v2.6.0-macos.2)
 提供可审查的源码安装脚本，不包含预编译 App 或模型。安装 [Homebrew](https://brew.sh) 后执行：
 
 ```bash
-BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.1
+BASE_URL=https://github.com/Alex-ghost599/CapsWriter-Offline-macOS/releases/download/v2.6.0-macos.2
 curl -fLO "$BASE_URL/install-macos.sh"
 curl -fLO "$BASE_URL/SHA256SUMS"
 shasum -a 256 -c SHA256SUMS
